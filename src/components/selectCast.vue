@@ -17,7 +17,7 @@ const selectCast = (castId: string) => {
 <style scoped>
 .modal-content {
   background: white;
-  padding: 20px;
+  padding: 5px;
   border-radius: 10px;
   text-align: center;
 }
@@ -27,11 +27,14 @@ const selectCast = (castId: string) => {
   margin: 10px 0;
 }
 .cast {
-  width: 70px;
+  width: 50px;
   margin: 0 10px;
-  padding: 10px;
+  padding: 5px;
   border: 1px solid black;
   cursor: pointer;
+}
+h2 {
+  margin: 0;
 }
 </style>
 
@@ -40,7 +43,7 @@ const selectCast = (castId: string) => {
     <h2>カードを選択</h2>
     <div class="cast-options">
       <div v-for="(cast, i) in availableCasts" :key="i" @click="selectCast(cast)">
-        <img :src="`./castImages/${cast}.png`" alt="cast" class="cast" />
+        <img :src="`./castImages/${cast}.webp`" :alt="cast" class="cast" />
       </div>
     </div>
     <button @click="closeModal">キャンセル</button>
