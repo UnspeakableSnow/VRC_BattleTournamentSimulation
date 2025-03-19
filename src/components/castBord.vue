@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import selectCast from './selectCast.vue'
 import type { target, damageType, castClass, gameStatus } from './cast.mts'
-import { cast, Cast_B, Cast_P } from './cast.mts'
+import { cast, cast_B, cast_P } from './cast.mts'
 import returnCast from './cast.mts'
 const gameStatus = ref<gameStatus>('select')
 // 全キャラのスキル・必殺技判定終了確認
