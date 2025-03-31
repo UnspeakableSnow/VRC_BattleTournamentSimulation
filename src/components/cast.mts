@@ -1,12 +1,15 @@
 export type target = 'front' | 'all' | 'select1' | 'select2' | 'select3'
 export type damageType = 'Normal' | 'Heal' | 'Skill' | 'Finisher'
-export type gameStatus =
-  | 'select'
-  | 'jankenBefore'
-  | 'diceBefore'
-  | 'activeSkillCheck'
-  | 'damageBefore'
-  | 'turnEnd'
+export type damageEffect = { target: target; damage: number; damageType: damageType }
+export type gameStatus = 'select' | 'janken' | 'activeSkillCheck' | 'dice' | 'damage' | 'turnEnd'
+export type gameStatusEffects = { [key: string]: gameStatus }
+export type skillReturn = {
+  gameStatusEffects: gameStatusEffects
+  diceEffects: diceEffects
+  damage: damageEffect[]
+}
+export type diceEffects = { [key: string]: number }
+export type selectingCast = { status: boolean; team: 'red' | 'blue'; index: number }
 // ------------------------------------------------------------ キャラ追加で必要な変更箇所
 export type castClass = cast | cast_P | cast_B | cast_blackStrayCat | cast_chiroChoco | cast_gaumaru
 type skillCheckArgs = {
@@ -46,9 +49,6 @@ export class cast {
   maxHp = 20
   hp: number
   team: 'red' | 'blue'
-  skillAbleGameStatus = ['diceBefore']
-  finisherAbleGameStatus = ['diceBefore']
-  selected = false
   skillAble = false
   finisherAble = false
   activeSkillUsed = false
@@ -60,25 +60,42 @@ export class cast {
   returnImgUri(): string {
     return `./castImages/${this.id}.webp`
   }
-  normalyAttack(dice: number): [target, number] {
-    return ['front', dice]
+  normalyAttack(dice: number): damageEffect {
+    return { target: 'front', damage: dice, damageType: 'Normal' }
   }
   damaged(damage: number, fromParty: boolean, damageType: damageType, dice: number): void {
     this.hp -= damage
   }
   skillCheck(skillCheckArgs: skillCheckArgs): {
-    gameStatus: gameStatus
-    dice: number
-    damage: [target, number]
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
   } {
     const { gameStatus, isRock, isWin, dice, turn, party } = skillCheckArgs
-    return { gameStatus: gameStatus, dice: dice, damage: ['front', 0] }
+    return { gameStatusEffects: {}, diceEffects: {}, damage: [] }
   }
-  activeSkill(status: boolean, team: 'red' | 'blue', index: number): [target, number] {
-    return ['front', 0]
+  activeSkill(selectingCast: selectingCast): {
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
+  } {
+    return { gameStatusEffects: {}, diceEffects: {}, damage: [] }
   }
-  finisher(status: boolean, team: 'red' | 'blue', index: number): [target, number] {
-    return ['front', 0]
+  finisher(selectingCast: selectingCast): {
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
+  } {
+    return { gameStatusEffects: {}, diceEffects: {}, damage: [] }
+  }
+  turnEnd(): void {
+    // Buffsを減らす処理
+    for (const key in this.buffs) {
+      this.buffs[key] -= 1
+      if (this.buffs[key] == 0) {
+        delete this.buffs[key]
+      }
+    }
   }
 }
 
@@ -117,9 +134,9 @@ export class cast_blackStrayCat extends cast {
     }
   }
   skillCheck(skillCheckArgs: skillCheckArgs): {
-    gameStatus: gameStatus
-    dice: number
-    damage: [target, number]
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
   } {
     const { party, gameStatus, dice, isRock, isWin } = skillCheckArgs
     // finisher
@@ -134,21 +151,37 @@ export class cast_blackStrayCat extends cast {
     } else {
       this.finisherAble = false
     }
-    return { gameStatus: gameStatus, dice: dice, damage: ['front', 0] }
+    return { gameStatusEffects: {}, diceEffects: {}, damage: [] }
   }
-  finisher(status: boolean, team: 'red' | 'blue', index: number): [target, number] {
-    console.log(status, team, index)
-    if (status && team !== this.team) {
-      switch (index) {
+  finisher(selectingCast: selectingCast): {
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
+  } {
+    console.log(selectingCast)
+    if (selectingCast.status && selectingCast.team !== this.team) {
+      switch (selectingCast.index) {
         case 0:
-          return ['select1', 30]
+          return {
+            gameStatusEffects: {},
+            diceEffects: {},
+            damage: [{ target: 'select1', damage: 30, damageType: 'Finisher' }],
+          }
         case 1:
-          return ['select2', 30]
+          return {
+            gameStatusEffects: {},
+            diceEffects: {},
+            damage: [{ target: 'select2', damage: 30, damageType: 'Finisher' }],
+          }
         case 2:
-          return ['select3', 30]
+          return {
+            gameStatusEffects: {},
+            diceEffects: {},
+            damage: [{ target: 'select3', damage: 30, damageType: 'Finisher' }],
+          }
       }
     }
-    return ['front', 0]
+    return { gameStatusEffects: {}, diceEffects: {}, damage: [] }
   }
 }
 
@@ -161,15 +194,15 @@ export class cast_chiroChoco extends cast {
     this.hp = this.maxHp
   }
   skillCheck(skillCheckArgs: skillCheckArgs): {
-    gameStatus: gameStatus
-    dice: number
-    damage: [target, number]
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
   } {
     const { party, gameStatus, isRock, isWin } = skillCheckArgs
-    let { dice } = skillCheckArgs
+    const diceEffects: diceEffects = {}
     // passive
-    if (gameStatus === 'activeSkillCheck' && !isWin) {
-      dice -= 1
+    if (gameStatus === 'dice' && !isWin) {
+      diceEffects['chiroChocoPassive'] = -1
     }
     // finisher
     if (
@@ -181,10 +214,18 @@ export class cast_chiroChoco extends cast {
     } else {
       this.finisherAble = false
     }
-    return { gameStatus: gameStatus, dice: dice, damage: ['front', 0] }
+    return { gameStatusEffects: {}, diceEffects: diceEffects, damage: [] }
   }
-  finisher(status: boolean, team: 'red' | 'blue', index: number): [target, number] {
-    return ['all', 12 - this.hp]
+  finisher(selectingCast: selectingCast): {
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
+  } {
+    return {
+      gameStatusEffects: {},
+      diceEffects: {},
+      damage: [{ target: 'all', damage: 12 - this.hp, damageType: 'Finisher' }],
+    }
   }
 }
 
@@ -193,39 +234,34 @@ export class cast_gaumaru extends cast {
   maxHp = 20
   text =
     'アクティブ：２ターン目以降に発動可能で、その後二ターンの間、自分のダイス判定を+1、受けるダメージを-1する。必殺：HP半分以下、じゃんけんでグーで勝ったとき敵一体に30ダメージ'
-  diceChangedTurns: number[] = []
   constructor(team: 'red' | 'blue') {
     super(team)
     this.hp = this.maxHp
   }
   damaged(damage: number, fromParty: boolean, damageType: damageType, dice: number): void {
-    if (this.buffs['hero'] > 0) {
+    if ('hero' in this.buffs && this.buffs['hero'] > 0) {
       this.hp -= damage - 1
-    } else if (this.diceChangedTurns.length >= 2) {
+    } else if ('heroActived' in this.buffs) {
       this.hp -= damage + 1
     } else {
       this.hp -= damage
     }
   }
   skillCheck(skillCheckArgs: skillCheckArgs): {
-    gameStatus: gameStatus
-    dice: number
-    damage: [target, number]
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
   } {
     const { party, gameStatus, isRock, isWin, turn } = skillCheckArgs
-    let { dice } = skillCheckArgs
+    const diceEffects: diceEffects = {}
     // heroMode
-    if (this.buffs['hero'] > 0 && this.diceChangedTurns.findIndex((d) => d === turn) === -1) {
-      this.diceChangedTurns.push(turn)
+    if ('hero' in this.buffs && this.buffs['hero'] > 0 && gameStatus === 'dice') {
       if (isWin) {
-        dice += 1
+        diceEffects['gaumaruHero'] = 1
       }
     }
-    if (this.buffs['hero'] > 0 && gameStatus === 'turnEnd') {
-      this.buffs['hero'] -= 1
-    }
     // active
-    if (!this.activeSkillUsed && gameStatus === 'activeSkillCheck' && turn > 0) {
+    if (!this.activeSkillUsed && gameStatus === 'activeSkillCheck' && turn >= 1) {
       this.skillAble = true
     } else {
       this.skillAble = false
@@ -242,24 +278,46 @@ export class cast_gaumaru extends cast {
     } else {
       this.finisherAble = false
     }
-    return { gameStatus: gameStatus, dice: dice, damage: ['front', 0] }
+    return { gameStatusEffects: {}, diceEffects: diceEffects, damage: [] }
   }
-  activeSkill(status: boolean, team: 'red' | 'blue', index: number): [target, number] {
+  activeSkill(selectingCast: selectingCast): {
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
+  } {
+    const diceEffects: diceEffects = {}
     this.buffs['hero'] = 2
+    this.buffs['heroActived'] = -1
     this.activeSkillUsed = true
-    return ['front', 0]
+    return { gameStatusEffects: {}, diceEffects: diceEffects, damage: [] }
   }
-  finisher(status: boolean, team: 'red' | 'blue', index: number): [target, number] {
-    if (status && team !== this.team) {
-      switch (index) {
+  finisher(selectingCast: selectingCast): {
+    gameStatusEffects: gameStatusEffects
+    diceEffects: diceEffects
+    damage: damageEffect[]
+  } {
+    if (selectingCast.status && selectingCast.team !== this.team) {
+      switch (selectingCast.index) {
         case 0:
-          return ['select1', 30]
+          return {
+            gameStatusEffects: {},
+            diceEffects: {},
+            damage: [{ target: 'select1', damage: 30, damageType: 'Finisher' }],
+          }
         case 1:
-          return ['select2', 30]
+          return {
+            gameStatusEffects: {},
+            diceEffects: {},
+            damage: [{ target: 'select2', damage: 30, damageType: 'Finisher' }],
+          }
         case 2:
-          return ['select3', 30]
+          return {
+            gameStatusEffects: {},
+            diceEffects: {},
+            damage: [{ target: 'select3', damage: 30, damageType: 'Finisher' }],
+          }
       }
     }
-    return ['front', 0]
+    return { gameStatusEffects: {}, diceEffects: {}, damage: [] }
   }
 }

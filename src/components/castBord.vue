@@ -1,13 +1,24 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import selectCast from './selectCast.vue'
-import type { castClass, gameStatus, target, damageType } from './cast.mts'
+import type {
+  castClass,
+  gameStatus,
+  target,
+  damageType,
+  damageEffect,
+  selectingCast,
+  skillReturn,
+} from './cast.mts'
 import { cast, cast_B, cast_blackStrayCat, cast_chiroChoco, cast_gaumaru, cast_P } from './cast.mts'
 import returnCast from './cast.mts'
+import cardDisplay from './cardDisplay.vue'
 const gameStatus = ref<gameStatus>('select')
+// const gameStatusEffects = ref<{ [name: string]: string }>({})
 const turn = ref(0)
 const winner = ref<'red' | 'draw' | 'blue'>('draw')
-const dice = ref(1)
+const dice = ref<number>(1)
+// const diceEffects = ref<{ [name: string]: number }>({})
 
 const redTeamCasts = ref<[castClass, castClass, castClass]>([
   new cast('red'),
@@ -29,7 +40,7 @@ blueTeamCasts.value = [
 
 // ------------------------------------------------------------ キャラ追加で必要な変更箇所
 const availableCasts = ['B', 'P', 'blackStrayCat', 'chiroChoco', 'gaumaru']
-const selectingCast = ref<{ status: boolean; team: 'red' | 'blue'; index: number }>({
+const selectingCast = ref<selectingCast>({
   status: false,
   team: 'red',
   index: 0,
@@ -47,8 +58,7 @@ const jankenRed = ref<'rock' | 'scissors' | 'paper'>('rock')
 const jankenBlue = ref<'rock' | 'scissors' | 'paper'>('rock')
 
 const teamSelected = () => {
-  gameStatus.value = 'jankenBefore'
-  passiveSkillCheck()
+  gameStatus.value = 'janken'
 }
 
 const janken = () => {
@@ -63,91 +73,149 @@ const janken = () => {
   } else {
     winner.value = 'blue'
   }
-  if (winner.value === 'draw') {
-    gameStatus.value = 'jankenBefore'
-  } else {
-    gameStatus.value = 'diceBefore'
+  skillCheck()
+
+  if (winner.value !== 'draw') {
+    gameStatus.value = 'activeSkillCheck'
+    skillCheck()
   }
-  passiveSkillCheck()
 }
 
-const crossDamage = () => {
-  gameStatus.value = 'damageBefore'
-  passiveSkillCheck()
+const damageCalc = (fromTeam: 'red' | 'blue', fromIndex: number, damageEffects: damageEffect[]) => {
+  for (const damageEffect of damageEffects) {
+    if (fromTeam === 'red') {
+      if (damageEffect.target === 'front') {
+        blueTeamCasts.value[fromIndex].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      } else if (damageEffect.target === 'all') {
+        blueTeamCasts.value[0].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+        blueTeamCasts.value[1].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+        blueTeamCasts.value[2].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      } else if (damageEffect.target === 'select1') {
+        blueTeamCasts.value[0].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      } else if (damageEffect.target === 'select2') {
+        blueTeamCasts.value[1].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      } else if (damageEffect.target === 'select3') {
+        blueTeamCasts.value[2].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      }
+    } else {
+      if (damageEffect.target === 'front') {
+        redTeamCasts.value[fromIndex].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      } else if (damageEffect.target === 'all') {
+        redTeamCasts.value[0].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+        redTeamCasts.value[1].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+        redTeamCasts.value[2].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      } else if (damageEffect.target === 'select1') {
+        redTeamCasts.value[0].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      } else if (damageEffect.target === 'select2') {
+        redTeamCasts.value[1].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      } else if (damageEffect.target === 'select3') {
+        redTeamCasts.value[2].damaged(
+          damageEffect.damage,
+          false,
+          damageEffect.damageType,
+          dice.value,
+        )
+      }
+    }
+  }
+}
+
+const normalyAttack = () => {
+  dice.value = parseInt(dice.value.toString()) //謎のバグが起きるため
+  skillCheck() //ダイスフェーズのスキルチェック
+
+  gameStatus.value = 'damage'
   if (winner.value === 'red') {
     for (let i = 0; i < 3; i++) {
-      const normalyAttackData = redTeamCasts.value[i].normalyAttack(dice.value)
-      if (normalyAttackData[0] === 'front') {
-        blueTeamCasts.value[i].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      } else if (normalyAttackData[0] === 'all') {
-        blueTeamCasts.value[0].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-        blueTeamCasts.value[1].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-        blueTeamCasts.value[2].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      } else if (normalyAttackData[0] === 'select1') {
-        blueTeamCasts.value[0].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      } else if (normalyAttackData[0] === 'select2') {
-        blueTeamCasts.value[1].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      } else if (normalyAttackData[0] === 'select3') {
-        blueTeamCasts.value[2].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      }
+      const attackData = [redTeamCasts.value[i].normalyAttack(dice.value)]
+      damageCalc('red', i, attackData)
     }
   } else if (winner.value === 'blue') {
     for (let i = 0; i < 3; i++) {
-      const normalyAttackData = blueTeamCasts.value[i].normalyAttack(dice.value)
-      if (normalyAttackData[0] === 'front') {
-        redTeamCasts.value[i].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      } else if (normalyAttackData[0] === 'all') {
-        redTeamCasts.value[0].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-        redTeamCasts.value[1].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-        redTeamCasts.value[2].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      } else if (normalyAttackData[0] === 'select1') {
-        redTeamCasts.value[0].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      } else if (normalyAttackData[0] === 'select2') {
-        redTeamCasts.value[1].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      } else if (normalyAttackData[0] === 'select3') {
-        redTeamCasts.value[2].damaged(normalyAttackData[1], false, 'Normal', dice.value)
-      }
+      const attackData = [blueTeamCasts.value[i].normalyAttack(dice.value)]
+      damageCalc('blue', i, attackData)
     }
   }
   turn.value++
-  gameStatus.value = 'turnEnd'
-  winner.value = 'draw'
-  passiveSkillCheck()
-  gameStatus.value = 'jankenBefore'
-}
+  skillCheck()
 
-const activeSkillCheck = () => {
-  gameStatus.value = 'activeSkillCheck'
-  passiveSkillCheck()
+  gameStatus.value = 'turnEnd'
   redTeamCasts.value.forEach((c) => {
-    c.skillCheck({
-      gameStatus: gameStatus.value,
-      isRock: jankenRed.value === 'rock',
-      isWin: winner.value === 'red',
-      dice: dice.value,
-      turn: turn.value,
-      party: redTeamCasts.value,
-    })
+    c.turnEnd()
   })
   blueTeamCasts.value.forEach((c) => {
-    c.skillCheck({
-      gameStatus: gameStatus.value,
-      isRock: jankenBlue.value === 'rock',
-      isWin: winner.value === 'blue',
-      dice: dice.value,
-      turn: turn.value,
-      party: blueTeamCasts.value,
-    })
+    c.turnEnd()
   })
-  if (
-    redTeamCasts.value.every((c) => !c.skillAble && !c.finisherAble) &&
-    blueTeamCasts.value.every((c) => !c.skillAble && !c.finisherAble)
-  ) {
-    crossDamage()
-  }
+  winner.value = 'draw'
+  gameStatus.value = 'janken'
 }
 
-const passiveSkillCheck = () => {
+const skillCheck = () => {
   for (let i = 0; i < 3; i++) {
     const ref = redTeamCasts.value[i].skillCheck({
       gameStatus: gameStatus.value,
@@ -157,10 +225,14 @@ const passiveSkillCheck = () => {
       turn: turn.value,
       party: redTeamCasts.value,
     })
-    gameStatus.value = ref.gameStatus
-    dice.value = ref.dice
-    if (ref.damage[1] !== 0) {
-      skillDamage(ref.damage, 'red', i, 'Skill')
+    for (const effect in ref.gameStatusEffects) {
+      gameStatus.value = ref.gameStatusEffects[effect]
+    }
+    for (const effect in ref.diceEffects) {
+      dice.value += ref.diceEffects[effect]
+    }
+    if (ref.damage.length !== 0) {
+      damageCalc('red', i, ref.damage)
     }
   }
   for (let i = 0; i < 3; i++) {
@@ -172,53 +244,26 @@ const passiveSkillCheck = () => {
       turn: turn.value,
       party: blueTeamCasts.value,
     })
-    gameStatus.value = ref.gameStatus
-    dice.value = ref.dice
-    if (ref.damage[1] !== 0) {
-      skillDamage(ref.damage, 'blue', i, 'Skill')
+    for (const effect in ref.gameStatusEffects) {
+      gameStatus.value = ref.gameStatusEffects[effect]
+    }
+    for (const effect in ref.diceEffects) {
+      dice.value += ref.diceEffects[effect]
+    }
+    if (ref.damage.length !== 0) {
+      damageCalc('blue', i, ref.damage)
     }
   }
 }
 
-const skillDamage = (
-  arg: [target, number],
-  team: 'red' | 'blue',
-  index: number,
-  damageType: damageType,
-) => {
-  const target = arg[0]
-  const damage = arg[1]
-  console.log(arg)
-  if (team === 'red') {
-    if (target === 'front') {
-      blueTeamCasts.value[index].damaged(damage, false, damageType, dice.value)
-    } else if (target === 'all') {
-      blueTeamCasts.value[0].damaged(damage, false, damageType, dice.value)
-      blueTeamCasts.value[1].damaged(damage, false, damageType, dice.value)
-      blueTeamCasts.value[2].damaged(damage, false, damageType, dice.value)
-    } else if (target === 'select1') {
-      blueTeamCasts.value[0].damaged(damage, false, damageType, dice.value)
-    } else if (target === 'select2') {
-      blueTeamCasts.value[1].damaged(damage, false, damageType, dice.value)
-    } else if (target === 'select3') {
-      blueTeamCasts.value[2].damaged(damage, false, damageType, dice.value)
-    }
-  } else {
-    if (target === 'front') {
-      redTeamCasts.value[index].damaged(damage, false, damageType, dice.value)
-    } else if (target === 'all') {
-      redTeamCasts.value[0].damaged(damage, false, damageType, dice.value)
-      redTeamCasts.value[1].damaged(damage, false, damageType, dice.value)
-      redTeamCasts.value[2].damaged(damage, false, damageType, dice.value)
-    } else if (target === 'select1') {
-      redTeamCasts.value[0].damaged(damage, false, damageType, dice.value)
-    } else if (target === 'select2') {
-      redTeamCasts.value[1].damaged(damage, false, damageType, dice.value)
-    } else if (target === 'select3') {
-      redTeamCasts.value[2].damaged(damage, false, damageType, dice.value)
-    }
+const activeSkillHandle = (ref: skillReturn, team: 'red' | 'blue', index: number) => {
+  for (const effect in ref.gameStatusEffects) {
+    gameStatus.value = ref.gameStatusEffects[effect]
   }
-  passiveSkillCheck()
+  for (const effect in ref.diceEffects) {
+    dice.value += ref.diceEffects[effect]
+  }
+  damageCalc(team, index, ref.damage)
 }
 </script>
 
@@ -243,7 +288,7 @@ const skillDamage = (
   >
     start buttle
   </button>
-  <form @submit.prevent="janken()" v-if="gameStatus === 'jankenBefore'">
+  <form @submit.prevent="janken()" v-if="gameStatus === 'janken'">
     赤チーム
     <select v-model="jankenRed" size="3">
       <option value="rock">rock</option>
@@ -258,7 +303,7 @@ const skillDamage = (
     </select>
     <input type="submit" value="じゃんけん確定" />
   </form>
-  <form @submit.prevent="activeSkillCheck()" v-if="gameStatus === 'diceBefore'">
+  <form @submit.prevent="normalyAttack()" v-if="gameStatus === 'dice'">
     <select v-model="dice" size="6">
       <option value="1">1</option>
       <option value="2">2</option>
@@ -269,7 +314,7 @@ const skillDamage = (
     </select>
     <input type="submit" value="ダイス確定" />
   </form>
-  <button v-if="gameStatus === 'activeSkillCheck'" @click="crossDamage()">
+  <button v-if="gameStatus === 'activeSkillCheck'" @click="gameStatus = 'dice'">
     スキル・必殺技処理完了
   </button>
   <p class="debug">
@@ -283,7 +328,7 @@ const skillDamage = (
     <div>
       <h3>赤チーム</h3>
       <div class="castRow">
-        <div
+        <cardDisplay
           v-for="(cast, i) in redTeamCasts"
           :key="cast.id"
           class="cast"
@@ -291,49 +336,27 @@ const skillDamage = (
             selected:
               selectingCast.status && selectingCast.team === 'red' && selectingCast.index === i,
           }"
-        >
-          <img
-            :src="cast.returnImgUri()"
-            :alt="cast.returnImgUri()"
-            @click="selectingCast = { status: true, team: 'red', index: i }"
-          />
-          <p>
-            HP: <span style="color: red" v-if="cast.hp <= 0">{{ cast.hp }}</span
-            ><span v-else>{{ cast.hp }}</span> / {{ cast.maxHp }}
-          </p>
-          <p>{{ cast.buffs }}</p>
-          {{ cast.skillAble }}
-          <button
-            v-if="gameStatus === 'activeSkillCheck' && cast.skillAble"
-            @click="
-              skillDamage(
-                cast.activeSkill(selectingCast.status, selectingCast.team, selectingCast.index),
-                'red',
-                i,
-                'Skill',
-              )
-            "
-          >
-            アクティブスキル
-          </button>
-          <button
-            v-if="gameStatus === 'activeSkillCheck' && cast.finisherAble"
-            @click="
-              skillDamage(
-                cast.finisher(selectingCast.status, selectingCast.team, selectingCast.index),
-                'red',
-                i,
-                'Finisher',
-              )
-            "
-          >
-            必殺技
-          </button>
-        </div>
+          :cast="cast"
+          :team="'red'"
+          :i="i"
+          :gameStatus="gameStatus"
+          @returnSkill="
+            (ref: skillReturn) => {
+              activeSkillHandle(ref, 'red', i)
+            }
+          "
+          @returnSelectingCast="
+            (ref: selectingCast) => {
+              selectingCast.status = ref.status
+              selectingCast.team = ref.team
+              selectingCast.index = ref.index
+            }
+          "
+        />
       </div>
       <h3>青チーム</h3>
       <div class="castRow">
-        <div
+        <cardDisplay
           v-for="(cast, i) in blueTeamCasts"
           :key="cast.id"
           class="cast"
@@ -341,67 +364,31 @@ const skillDamage = (
             selected:
               selectingCast.status && selectingCast.team === 'blue' && selectingCast.index === i,
           }"
-        >
-          <img
-            :src="cast.returnImgUri()"
-            :alt="cast.returnImgUri()"
-            @click="selectingCast = { status: true, team: 'blue', index: i }"
-          />
-          <p>
-            HP: <span style="color: red" v-if="cast.hp <= 0">{{ cast.hp }}</span
-            ><span v-else>{{ cast.hp }}</span> / {{ cast.maxHp }}
-          </p>
-          <button
-            v-if="gameStatus === 'activeSkillCheck' && cast.skillAble"
-            @click="
-              skillDamage(
-                cast.activeSkill(selectingCast.status, selectingCast.team, selectingCast.index),
-                'blue',
-                i,
-                'Skill',
-              )
-            "
-          >
-            アクティブスキル
-          </button>
-          <button
-            v-if="gameStatus === 'activeSkillCheck' && cast.finisherAble"
-            @click="
-              skillDamage(
-                cast.finisher(selectingCast.status, selectingCast.team, selectingCast.index),
-                'blue',
-                i,
-                'Finisher',
-              )
-            "
-          >
-            必殺技
-          </button>
-        </div>
+          :cast="cast"
+          :team="'blue'"
+          :i="i"
+          :gameStatus="gameStatus"
+          @returnSkill="
+            (ref: skillReturn) => {
+              activeSkillHandle(ref, 'blue', i)
+            }
+          "
+          @returnSelectingCast="
+            (ref: selectingCast) => {
+              selectingCast.status = ref.status
+              selectingCast.team = ref.team
+              selectingCast.index = ref.index
+            }
+          "
+        />
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.cast {
-  width: 20%;
-  margin: 0 10px;
-  padding: 2px;
-  border: 5px solid black;
-  border-radius: 10px;
-  text-align: center;
-  display: inline-block;
-}
 .selected {
   border: 5px solid yellow;
-}
-.cast img {
-  width: 100%;
-  border-radius: 10px;
-}
-.cast p {
-  margin: 0;
 }
 .castRow {
   display: flex;
