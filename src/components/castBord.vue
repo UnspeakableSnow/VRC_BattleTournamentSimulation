@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import selectCast from './selectCast.vue'
-import type {
-  castClass,
-  gameStatus,
-  target,
-  damageType,
-  damageEffect,
-  selectingCast,
-  skillReturn,
-} from './cast.mts'
+import type { castClass, gameStatus, damageEffect, selectingCast, skillReturn } from './cast.mts'
 import { cast, cast_B, cast_blackStrayCat, cast_chiroChoco, cast_gaumaru, cast_P } from './cast.mts'
 import returnCast from './cast.mts'
 import cardDisplay from './cardDisplay.vue'
@@ -340,6 +332,7 @@ const activeSkillHandle = (ref: skillReturn, team: 'red' | 'blue', index: number
           :team="'red'"
           :i="i"
           :gameStatus="gameStatus"
+          :selectingCast="selectingCast"
           @returnSkill="
             (ref: skillReturn) => {
               activeSkillHandle(ref, 'red', i)
@@ -368,6 +361,7 @@ const activeSkillHandle = (ref: skillReturn, team: 'red' | 'blue', index: number
           :team="'blue'"
           :i="i"
           :gameStatus="gameStatus"
+          :selectingCast="selectingCast"
           @returnSkill="
             (ref: skillReturn) => {
               activeSkillHandle(ref, 'blue', i)

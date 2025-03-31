@@ -1,16 +1,19 @@
+<!-- eslint-disable @typescript-eslint/no-unused-vars -->
 <!-- 複数ルーム実装してWebSocketで共有することになったら使う。今はゴミ。 -->
 <script setup lang="ts">
-import { defineEmits, ref } from 'vue'
+import { defineEmits } from 'vue'
+// eslint-disable-next-line vue/no-dupe-keys
 import type { cast, selectingCast, skillReturn } from './cast.mts'
 const prop = defineProps<{
   cast: cast
   team: 'red' | 'blue'
   i: number
   gameStatus: string
+  selectingCast: selectingCast
 }>()
 const emits = defineEmits<{
-  (e: 'returnSelectingCast'): selectingCast
-  (e: 'returnSkill'): skillReturn
+  (e: 'returnSelectingCast', value: selectingCast): void
+  (e: 'returnSkill', value: skillReturn): void
 }>()
 </script>
 
